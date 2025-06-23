@@ -257,6 +257,7 @@ const darkTheme = {
       info: {
         color: '#ce9178',
         bg: 'rgb(48,48,49)',
+        border: 'rgb(140, 140, 140)',
         boxShadow: 'rgb(0 0 0 / 36%) 0px 2px 8px'
       }
     }

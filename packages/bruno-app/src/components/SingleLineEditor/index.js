@@ -1,9 +1,14 @@
-import React, { Component } from 'react';
+import { IconEye, IconEyeOff } from '@tabler/icons';
+import cloneDeep from 'lodash/cloneDeep';
 import isEqual from 'lodash/isEqual';
-import { getAllVariables } from 'utils/collections';
+import { updateCollectionVar } from 'providers/ReduxStore/slices/collections';
+import { saveEnvironment, updateFolderVar, updateVar } from 'providers/ReduxStore/slices/collections/index';
+import React, { Component } from 'react';
+import { connect } from 'react-redux';
+import { findVarByName, getAllVariables } from 'utils/collections';
+import { findEnvironmentInCollection } from 'utils/collections/index';
 import { defineCodeMirrorBrunoVariablesMode, MaskedEditor } from 'utils/common/codemirror';
 import StyledWrapper from './StyledWrapper';
-import { IconEye, IconEyeOff } from '@tabler/icons';
 
 let CodeMirror;
 const SERVER_RENDERED = typeof window === 'undefined' || global['PREVENT_CODEMIRROR_RENDER'] === true;
@@ -29,7 +34,12 @@ class SingleLineEditor extends Component {
   componentDidMount() {
     // Initialize CodeMirror as a single line editor
     /** @type {import("codemirror").Editor} */
-    const variables = getAllVariables(this.props.collection, this.props.item);
+    if (!this.props.item) return;
+    const item = this.props.item.draft ? this.props.item.draft : this.props.item;
+    const variables = getAllVariables(this.props.collection, item);
+
+    // We have an issue. If we update a variable without saving it, getAllVariables wont retrieve it from draft.
+    // getAllVariables should retrieve it from draft instead of item if exists.
 
     const runHandler = () => {
       if (this.props.onRun) {
@@ -49,7 +59,8 @@ class SingleLineEditor extends Component {
       theme: this.props.theme === 'dark' ? 'monokai' : 'default',
       mode: 'brunovariables',
       brunoVarInfo: {
-        variables
+        variables,
+        setVar: this._brunoVarInfoSetVar
       },
       scrollbarStyle: null,
       tabindex: 0,
@@ -90,6 +101,75 @@ class SingleLineEditor extends Component {
     this.setState({ maskInput: this.props.isSecret });
   }
 
+  _brunoVarInfoSetVar = (name, value) => {
+    const item = this.props.item.draft ? this.props.item.draft : this.props.item;
+    const [variable, origin, itemUid] = findVarByName(this.props.collection, item, name, "request");
+    if (origin == 'collection') {
+      this.props.dispatch(
+        updateCollectionVar({
+          type: "request",
+          var: {
+            uid: variable.uid,
+            name: name,
+            value: value,
+            enabled: true,
+          },
+          itemUid: itemUid,
+          collectionUid: this.props.collection.uid
+        })
+      );
+      return;
+    }
+
+    if (origin == 'environment') {
+      const environment = findEnvironmentInCollection(this.props.collection, this.props.collection.activeEnvironmentUid);
+      const values = environment.variables;
+      const index = values.findIndex(v => v.uid == variable.uid);
+      const mutated = [
+        ...values.slice(0, index), // Items before the index
+        {
+          ...variable,
+          value: value
+        },
+        ...values.slice(index + 1)
+      ]
+      this.props.dispatch(saveEnvironment(cloneDeep(mutated), environment.uid, this.props.collection.uid));
+      return;
+    }
+
+    if (origin == 'folder') {
+      this.props.dispatch(
+        updateFolderVar({
+          type: "request",
+          var: {
+            uid: variable.uid,
+            name: name,
+            value: value,
+            enabled: true,
+          },
+          folderUid: itemUid,
+          collectionUid: this.props.collection.uid
+        })
+      )
+      return;
+    }
+
+    // default
+    this.props.dispatch(
+      updateVar({
+        type: "request",
+        var: {
+          uid: variable.uid,
+          name: name,
+          value: value,
+          enabled: true,
+        },
+        itemUid: itemUid,
+        collectionUid: this.props.collection.uid
+      })
+    )
+  }
+
   /** Enable or disable masking the rendered content of the editor */
   _enableMaskedEditor = (enabled) => {
     if (typeof enabled !== 'boolean') return;
@@ -118,6 +198,7 @@ class SingleLineEditor extends Component {
     // user-input changes which could otherwise result in an infinite
     // event loop.
     this.ignoreChangeEvent = true;
+    if (!this.props || !this.props.item) return;
 
     let variables = getAllVariables(this.props.collection, this.props.item);
     if (!isEqual(variables, this.variables)) {
@@ -141,6 +222,7 @@ class SingleLineEditor extends Component {
   }
 
   componentWillUnmount() {
+    // if(!this.editor) return;
     this.editor.getWrapperElement().remove();
   }
 
@@ -181,4 +263,4 @@ class SingleLineEditor extends Component {
     );
   }
 }
-export default SingleLineEditor;
+export default connect()(SingleLineEditor);

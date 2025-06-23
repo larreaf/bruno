@@ -232,6 +232,27 @@ const GlobalStyle = createGlobalStyle`
     margin: 1em 0;
   }
 
+  .CodeMirror-brunoVarInfo input {
+    margin: 1em 0 0 0;
+    background: ${(props) => props.theme.codemirror.variable.info.bg};
+    // border-color: ${(props) => props.theme.codemirror.variable.info.border};
+    // border-width: 0 0 0.5px 0;
+  }
+  
+  .CodeMirror-brunoVarInfo input+span::after {
+    content: "";
+    background: ${(props) => props.theme.codemirror.variable.info.border};
+    position: absolute;
+    left: 5%;
+    bottom: 6px;
+    width: 90%;
+    height: 0.25px;
+  }
+
+  .CodeMirror-brunoVarInfo input:focus{
+    outline: none;
+  }
+
   .CodeMirror-hint-active {
     background: #08f !important;
     color: #fff !important;

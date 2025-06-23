@@ -13,7 +13,7 @@ const { interpolate } = brunoCommon;
 
 let CodeMirror;
 const SERVER_RENDERED = typeof window === 'undefined' || global['PREVENT_CODEMIRROR_RENDER'] === true;
-const { get } = require('lodash');
+const { get, set } = require('lodash');
 
 if (!SERVER_RENDERED) {
   CodeMirror = require('codemirror');
@@ -27,14 +27,17 @@ if (!SERVER_RENDERED) {
     // str is of format {{variableName}} or :variableName, extract variableName
     let variableName;
     let variableValue;
+    let variableInterpolatedValue;
 
     if (str.startsWith('{{')) {
       variableName = str.replace('{{', '').replace('}}', '').trim();
-      variableValue = interpolate(get(options.variables, variableName), options.variables);
+      variableValue = get(options.variables, variableName);
+      variableInterpolatedValue = interpolate(variableValue, options.variables);
     } else if (str.startsWith('/:')) {
       variableName = str.replace('/:', '').trim();
       variableValue =
         options.variables && options.variables.pathParams ? options.variables.pathParams[variableName] : undefined;
+      variableInterpolatedValue = variableValue;
     }
 
     if (variableValue === undefined) {
@@ -44,13 +47,35 @@ if (!SERVER_RENDERED) {
     const into = document.createElement('div');
     const descriptionDiv = document.createElement('div');
     descriptionDiv.className = 'info-description';
+
+    // Secrets are masked.
     if (options?.variables?.maskedEnvVariables?.includes(variableName)) {
       descriptionDiv.appendChild(document.createTextNode('*****'));
-    } else {
-      descriptionDiv.appendChild(document.createTextNode(variableValue));
+      into.appendChild(descriptionDiv);
+      return into;
     }
-    into.appendChild(descriptionDiv);
 
+    // Variable hot update.
+    if (options.setVar !== undefined) {
+      const inputField = document.createElement('input');
+      inputField.type = 'text';
+      inputField.value = variableValue;
+      inputField.onkeyup = (e) => {
+        set(options.variables, variableName, e.target.value);
+        options.setVar(variableName, e.target.value);
+      }
+      // if (variableValue !== inputField.value) {
+      //   into.appendChild(document.createTextNode(interpolate(get(options.variables, variableName), options.variables)));
+      // }
+      descriptionDiv.appendChild(inputField);
+      descriptionDiv.appendChild(document.createElement('span'));
+      into.appendChild(descriptionDiv);
+      return into;
+    }
+
+    // Show var info by default.
+    descriptionDiv.appendChild(document.createTextNode(variableValue));
+    into.appendChild(descriptionDiv);
     return into;
   };
 

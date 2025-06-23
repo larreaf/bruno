@@ -258,6 +258,7 @@ const lightTheme = {
       info: {
         color: 'rgb(52, 52, 52)',
         bg: 'white',
+        border: 'rgb(140, 140, 140)',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.45)'
       }
     }

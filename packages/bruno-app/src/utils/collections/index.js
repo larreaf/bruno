@@ -948,6 +948,59 @@ export const getTotalRequestCountInCollection = (collection) => {
   return count;
 };
 
+// findVarByName searches a variable in the given collection, item or active environment. When the
+// variable is found, it will be returned as long as the variable origin (collection, request item,
+// folder item, environment) and the item uid.
+export const findVarByName = (collection, item, name, type) => {
+  // const collection = findCollectionByUid(state.collections, action.payload.collectionUid);
+  let foundVar = [];
+  if(!collection) return [];
+
+  // const item = findItemInCollection(collection, action.payload.itemUid);
+
+  if (item && isItemARequest(item)) {
+    if (type === 'request') {
+      foundVar = find(item.request.vars.req, (v) => v.name === name);
+      if (foundVar) {
+        return [foundVar, 'request', item.uid];
+      }
+    } else if (type === 'response') {
+      foundVar = find(item.request.vars.res, (v) => v.name === name);
+      if (foundVar) {
+        return [foundVar, 'response', item.uid];
+      }
+    }
+  }
+  const environment = findEnvironmentInCollection(collection, collection.activeEnvironmentUid);
+  foundVar = find(environment?.variables, (v) => v.name === name);
+  if (foundVar){
+    return [foundVar, 'environment', environment.uid];
+  }
+  const requestTreePath = getTreePathFromCollectionToItem(collection, item);
+  let collectionRequestVars = get(collection, 'root.request.vars.req', []);
+  foundVar = find(collectionRequestVars, (v) => v.name === name);
+  if (foundVar){
+    return [foundVar, 'collection', collection.uid];
+  }
+  for (let i of requestTreePath) {
+    if (i.type === 'folder') {
+      let vars = get(i, 'root.request.vars.req', []);
+      foundVar = find(vars, (v) => v.name === name);
+      if (foundVar){
+        return [foundVar, 'folder', i.uid];
+      }
+    } else {
+      let vars = get(i, 'request.vars.req', []);
+      foundVar = find(vars, (v) => v.name === name);
+      if (foundVar){
+        return [foundVar, 'request', i.uid];
+      }
+    }
+  }
+
+  return [];
+}
+
 export const getAllVariables = (collection, item) => {
   if(!collection) return {};
   const envVariables = getEnvironmentVariables(collection);
@@ -1041,7 +1094,8 @@ const mergeVars = (collection, requestTreePath = []) => {
         }
       });
     } else {
-      let vars = get(i, 'request.vars.req', []);
+      // TODO: Create an issue and PR to fix a bug in which the varinfo wont be updated with a draft value.
+      let vars = i?.draft ? get(i, 'draft.request.vars.req', []) : get(i, 'request.vars.req', []);
       vars.forEach((_var) => {
         if (_var.enabled) {
           requestVariables[_var.name] = _var.value;

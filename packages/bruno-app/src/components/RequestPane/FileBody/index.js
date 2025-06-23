@@ -109,6 +109,7 @@ const FileBody = ({ item, collection }) => {
                       <SingleLineEditor
                         className="flex items-center justify-center"
                         onSave={onSave}
+                        item={item}                        
                         theme={storedTheme}
                         placeholder="Auto"
                         value={param.contentType}

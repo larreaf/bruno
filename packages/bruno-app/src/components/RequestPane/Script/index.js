@@ -45,6 +45,7 @@ const Script = ({ item, collection }) => {
         <CodeEditor
           collection={collection}
           value={requestScript || ''}
+          // item={item}
           theme={displayedTheme}
           font={get(preferences, 'font.codeFont', 'default')}
           fontSize={get(preferences, 'font.codeFontSize')}
@@ -59,6 +60,7 @@ const Script = ({ item, collection }) => {
         <CodeEditor
           collection={collection}
           value={responseScript || ''}
+          // item={item}
           theme={displayedTheme}
           font={get(preferences, 'font.codeFont', 'default')}
           fontSize={get(preferences, 'font.codeFontSize')}
